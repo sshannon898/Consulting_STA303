@@ -1,0 +1,451 @@
+---
+title: "An analysis of Biases within Hiring, Salaries, and Promotions"
+subtitle: "An indepth look at a Black Saber's practices"
+author: "Report prepared for Black Saber Software"
+date: 2021-04-22
+lang: "en"
+output:
+  pdf_document:
+    template: report.tex
+    toc: true
+    toc_depth: 2
+titlepage: true
+titlepage-color: "666aad"
+titlepage-text-color: "FFFFFF"
+titlepage-rule-color: "FFFFFF"
+titlepage-rule-height: 2
+---
+
+```{r, message = FALSE, echo=FALSE, results='hide', warning=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(knitr)
+library(ggplot2)
+library(lme4)
+# this should supress all code and messages
+knitr::opts_chunk$set(include=FALSE)
+```
+
+```{r, , echo = FALSE, include=T, message=F, results='hide', warning=FALSE }
+# This chunk provides an example of some things you can do with RMarkdown to make your report creation process easier
+
+# read in the data
+black_saber_current_employees <- read_csv("data/black-saber-current-employees.csv")
+final_hires <- read_csv("data/final-hires-newgrad_2020.csv")
+phase1 <- read_csv("data/phase1-new-grad-applicants-2020.csv")
+phase2 <- read_csv("data/phase2-new-grad-applicants-2020.csv")
+phase3 <- read_csv("data/phase3-new-grad-applicants-2020.csv")
+```
+\newpage
+# Executive summary
+
+It is no secret that within many industries, women are generally paid less than their male counter-parts, and discriminated against in other ways, such as within hiring, within promotions etc. The purpose of this study and analysis was to determine if there are any biases within the company that they should be aware about. Factors examined were related to hiring, salaries, and promotions within the company. It was determined that biases are indeed present within the company, and that women in the company are generally paid less, promoted less and hired less. We utilized graphical analyses over the n=607 employees as well as utilizing statistical models to determine significance of certain factors as they relate to the analysis. 
+
+Key findings
+
+* _Women are penalized as starting three quarters later than men_
+
+* _The AI values the technical skills and writing skills of women less than men, the AI values the speaking skills and leadership presence of women more than men._
+
+* _Women on average make about 2000 less than their male counter-parts at every role level across all teams._
+
+Limitations
+
+* _The promotions analysis is limited by the small range of promotions given to employees, additionally half of all employees have not recieved any promotion._
+
+* _The applicant pool for hiring shrinks dramatically at each phase, allowing for analysis at phase 1 and 2 only._
+
+* _Those whose gender is "prefer not to say" were left out of the analysis due to small sample size._
+
+```{r salary manipulation, echo = FALSE, include=F, message=F, results='hide', warning=FALSE }
+df <- black_saber_current_employees %>% 
+  mutate(salary_num = as.numeric(str_replace_all(salary, "([,$])", "")))
+```
+
+
+\newpage
+# Technical report
+
+
+
+## Introduction
+
+
+This report has been curated to analyse the current employees at Black Saber Software and to address the internal concerns raised about biases in their hiring and remuneration process. There are three main research questions that are looked into about biases of hiring, salary, and promotion. The next section covers those questions and outlines what exactly will be answered at the end of the report. There are various plots and graphs produced which assist in visualizing the analysis done and determining biases for each sub-section (hiring, salary, and promotions) such as boxplots and bar graphs further in the report. In order to numerically determine the biases within hiring, salary, and promotion models have been developed and summarized. Towards the end of this report, assumptions and limitaions have been discussed as well as information about the consultants of Data6ix and the ethical regulations Data6ix follows has been given.
+
+### Research questions
+
+_Do biases exist within the salary system? Do certain teams get paid more than others?_
+
+_Do biases exist within the AI hiring system? Are certain groups favored as opposed to others?_
+
+_Who recieves promotions? Are particular groups favored more than others?_
+
+
+### Salary Analysis
+*Are salaries in Black Saber biased towards particular groups?*
+
+The gender pay gap is still a pressing issue in the current era. This research question aims to address and analyze the gender-based occupational segregation and its salary distributions among teams at black saber. This research question will also investigate the potential wage gap based on the seniority of the employees in their respective teams. In order to standardize the salary column for further data wrangling, str type objects were modified, removing characters like "$" and ",", and coercing into numerics. Additionally, a new variable has been added as "salary_num" in the data frame. The data head is shown below for better understanding.     
+
+```{r salary plots1, , echo = FALSE, include=F, message=F, results='hide', warning=FALSE }
+#library(ggpubr)
+
+#par(mfrow=c(1,3))
+
+#not sure if useful
+#hist(df$salary_num, col= "pink", main= "Histogram of Salary\nDistribution")
+#hist(sum$Salary_Mean, col= "magenta",  main= "Histogram of Mean\nSalary Distribution")
+#hist(df$productivity, col= "violet",  main= "Histogram of Productivity")
+
+#p<-ggplot(df) +
+#geom_histogram(mapping = aes(x = df$salary_num, fill = gender), position = "stack")
+#q<-ggplot(sum) +
+#geom_histogram(mapping = aes(x = sum$Salary_Mean, fill = Gender), position = "stack")
+
+#r<-ggplot(df) + geom_histogram(mapping = aes(x = df$productivity, fill = gender), position = "stack")
+
+#s<- ggplot(df) +
+#geom_bar(mapping = aes(x = team, fill = gender), position = "dodge")
+
+#ggarrange( p,q, s ,
+#labels = c("A", "B", "C"),
+#ncol = 1, nrow = 3)
+```
+
+
+```{r salary plots2, echo = FALSE, include=T, message=F, results='hide', warning=FALSE }
+a<-df%>% ggplot(mapping = aes(x = team, y = salary_num, color = gender)) +
+  geom_boxplot() +
+  scale_x_discrete(guide = guide_axis(n.dodge=2)) + 
+  labs(title = "Distribution of salaries by gender per Team",
+       x = "Team",
+       y = "Salary") + theme_minimal()
+#rewrite role seniority as a factor for ordering
+df$role_seniority <- factor(df$role_seniority, levels = c("Entry-level", "Junior I", "Junior II", "Senior I", "Senior II", "Senior III", "Manager", "Director", "Vice president"))
+
+b<- df%>% ggplot(mapping = aes(x = role_seniority, y = salary_num, color = gender)) +
+  geom_boxplot() + 
+  scale_x_discrete(guide = guide_axis(n.dodge=2)) + 
+  labs(title = "Distribution of salaries by gender per role seniority",
+       x = "Role Seniority",
+       y = "Salary") + theme_minimal()
+  
+a
+#c<- df%>% ggplot(mapping = aes(x = leadership_for_level, y = salary_num, color = gender)) +
+#geom_boxplot()
+
+#d<- ggplot(df, aes(x = productivity, y = salary_num, colour = gender )) +
+#geom_point(size = 0.1) +
+#theme_classic()+
+#geom_smooth(method=lm)
+
+#ggarrange( a,b,c, d, labels = c("A", "B", "C", "D" ),
+#ncol = 2, nrow = 2)
+```
+Figure 1. Distribution of Salaries by gender across Teams. The median salary across all teams is higher for men in Client Services, Data, Design, and Marketing and Sales. The highest earners on every team are men. 
+```{r echo = FALSE, include=T, message=F, results='hide', warning=FALSE}
+b
+```
+Figure 2. Distribution of Salaries by Gender per Role Seniority. Juniors, Seniors, exhibit bias against women as their median pay is lower than their male counterparts.
+```{r salary models, echo = FALSE, include=F, message=F, results='hide', warning=FALSE }
+library(lme4)
+
+#m1 <- lmer(salary_num ~ team + role_seniority + gender+ gender:leadership_for_level+ gender:productivity + (1|financial_q) + (1|leadership_for_level) + (1| productivity), data = df)
+#summary(m1)
+#m2 <- lmer(salary_num ~ role_seniority + gender+ gender:leadership_for_level+ gender:productivity + (1|financial_q) + (1|leadership_for_level) + (1| productivity), data = df)
+  
+#m3 <- lmer(salary_num ~ role_seniority + gender:leadership_for_level + (1|financial_q) + (1|leadership_for_level)+ ( 1|team)+ (1|gender) , data = df)
+
+#m4 <- lmer(salary_num ~ role_seniority + gender+ gender:leadership_for_level + (1|financial_q) + (1|leadership_for_level)+ ( 1|team), data = df)
+
+#m5 <- lmer(salary_num ~ team + role_seniority + gender+ gender:leadership_for_level+ (1|financial_q) + (1|team), data = df)
+#summary(m5) 
+
+#model is huge, but is the best model with AIC
+m6 <- lmer(salary_num ~  (1|employee_id) + (1|financial_q) + role_seniority:team:gender, REML=FALSE, data=df)
+summary(m6)
+
+#m7 <- lmer(salary_num ~ (1|employee_id) + (1|financial_q) + role_seniority*gender + team:gender, REML=TRUE, data=df)
+#summary(m7)
+#anova(m5,m6)
+```
+
+To analyze the potential bias across different variables provided in the black saber's dataset, a linear mixed model was fitted, with the financial quarter and the  employee id being random effects on the salary as they all differ from each other. (Some financial quarters the company may pay different amounts, some employees may be paid at different rates because they have bargained with employers.) The model was fitted with a three way interaction effect between gender, role seniority, and team. The difference between the average salary between men and women at each role level was calculated and the average of these differences was taken for each team. The salary levels for managers on the People and Talent team, the Operations team, the Legal and Financial team, the Data team, and the Client services team were not statistically signifigant and thus left out of the calculation of the average salary of men and women on those teams. On some teams, some role-levels were held exclusively by one gender, so only role levels that had both men and women were used. 
+
+On average, women make \\\$1374 less than their male colleagues across all role levels and all teams. On the client services team, women make on average \\\$2329. On the data team women make \\\$2467 less at each role level on average. On the Design team women make on average \\\$3603 less, with entry level male employees being paid more than Junior I female employees. On the Legal and Financial team, women made \\\$3924 less on average. On the Marketing and Sales team women made \\\$2764 less than men. On the Operations team women made 2370 less than men on average. On the People and Talent team women made \\\$1067 less than men on average. On the Software team, women made \\\$2485 less than men in equal roles. Across all teams at Black Saber women are paid less than men at the same seniority level on average, presenting a systemic bias against women within every team.
+
+### Assessing bias present in the AI hiring system
+*How does the AI weight different people as their gender changes?*
+
+There are three phases of hiring. Phase 1 and 2 are assessed by an AI which, utilizes an algorithm to determine who will be chosen for the next phase. In phase 3 applicants are screened by two interviewers who each give a score. Canididates with the highest scores are then given an offer. To begin, it was necessary to wrangle the data to allwo for analysis. We began by filtering the auto rejects within Phase 1, those who did not have GPA above a 2.0, those who did not submit a CV or a Cover letter, and those who had 0 extracurriculars. Afterwards, we needed to add a variable to each phase indicating whether the applicant passed that particular phase, by assessing whether that applicants ID is present in the next phase. Finally, we added gender to phase 3. 
+
+```{r hiring research mutations, echo = FALSE, include=T, message=F, results='hide', warning=FALSE }
+
+  #add variable in each phase that assesses if the applicant has passed a particular phase
+
+phase2_pass <- as.vector(phase2$applicant_id)
+phase3_pass <- as.vector(phase3$applicant_id)
+final_pass <- as.vector(final_hires$applicant_id)
+
+phase1$pass <- ifelse(phase1$applicant_id %in% phase2_pass, 1, 0)
+phase2$pass <- ifelse(phase2$applicant_id %in% phase3_pass, 1, 0)
+phase3$pass <- ifelse(phase3$applicant_id %in% final_pass, 1, 0)
+
+#put speaking skills and leadership skills on the same level of magnitude as technical skills and writing skills
+#phase2$speaking_skills <- phase2$speaking_skills*10
+#phase2$leadership_presence <- phase2$leadership_presence*10
+
+phase2_data <- phase2 %>% filter(team_applied_for == "Data") %>%
+  subset(gender != "Prefer not to say")
+phase2_software <- phase2 %>% filter(team_applied_for == "Software") %>%
+  subset(gender != "Prefer not to say")
+#Prefer not to say is a small group and none of that group passed so remove from the analysis
+phase2 <- phase2 %>% filter(gender != "Prefer not to say")
+  #add gender into phase3 
+
+phase3$gender <- phase2$gender[phase2$pass == 1]
+
+  #add speaking skills into phase3
+
+phase3$speaking_skills <- phase2$speaking_skills[phase2$pass == 1]
+
+  #add average score of both interviewers into phase3
+
+phase3$avg_score <- (phase3$interviewer_rating_1 + phase3$interviewer_rating_2)/2
+```
+
+```{r hiring research phase1, echo = FALSE, include=F, message=F, results='hide', warning=FALSE }
+  #investigate who passes phase1
+  #people who did not submit a CV or a Cover letter were automatically rejected
+  #people with a GPA below 2.0 were automatically rejected
+  #people with 0 extracurriculars were automatically rejected
+  #filter automatically rejected people
+
+phase1_filter <- phase1 %>% filter(phase1$gpa >= 2 & phase1$cv == 1 & phase1$cover_letter == 1 & phase1$extracurriculars  >= 1)
+
+#phase1_model <- glm(pass ~ gpa + extracurriculars + work_experience + gender + team_applied_for, family=quasibinomial, data=phase1_filter)
+#summary(phase1_model)
+```
+
+```{r hiring model selection phase 2, echo = FALSE, include=F, message=F, results='hide', warning=FALSE }
+
+#an initial model
+
+#m1 <- glm(pass ~ gpa + team_applied_for + extracurriculars + work_experience + gender*technical_skills + gender*writing_skills + gender*leadership_presence + gender*speaking_skills, family = quasibinomial, data = phase2)
+#summary(m1)
+
+#from this model the interaction between gender and technical skills and    #writing skills for women is significant. While women are initially valued   #higher (significant), womens technical skills are valued at 92% of their   #actual score compared to men, and womens writing skills are valued at 90%   #of their actual score compared to men
+
+#phase2 data team glm
+#m2 <- glm(pass ~ gpa + extracurriculars + work_experience + gender:technical_skills + gender:writing_skills + gender:leadership_presence + gender:speaking_skills, family=quasibinomial, data = phase2_data)
+#summary(m2)
+
+#phase2 software team
+#m3 <- glm(pass ~ gpa + extracurriculars + work_experience + gender:technical_skills + gender:writing_skills + gender:leadership_presence + gender:speaking_skills, family=quasibinomial, data = phase2_software)
+#summary(m3)
+
+#firth regression
+library(logistf)
+
+#m4 <- logistf(data=phase2_software, pass~gpa+extracurriculars+work_experience+gender:technical_skills+gender:writing_skills+gender:leadership_presence+gender:speaking_skills,firth=TRUE,pl=TRUE)
+#summary(m4)
+
+#phase 2 data firth
+
+#m5 <- logistf(data=phase2_data, pass ~ gpa + extracurriculars + work_experience + gender:technical_skills + gender:writing_skills + gender:leadership_presence + gender:speaking_skills, firth =TRUE, pl=TRUE)
+#summary(m5)
+
+
+#phase2 data team glmer
+#m6 <- glmer(pass ~ gpa + extracurriculars + work_experience + (1|applicant_id) + gender:technical_skills + gender:writing_skills + gender:leadership_presence + gender:speaking_skills, family=binomial, data = phase2_data)
+#summary(m6)
+
+#phase2 software team
+#m7 <- glmer(pass ~ gpa + extracurriculars + work_experience + gender:technical_skills + (1|applicant_id) + gender:writing_skills + gender:leadership_presence + gender:speaking_skills, family=binomial, data = phase2_software)
+#summary(m7)
+
+#glmer models both have 0 variance for the random effect of the applicant_id, therefore the glm models are likely the better models, as they can be fit with quasibinomial distributions
+
+#m8 <- glm(pass ~ gender:technical_skills + gender:writing_skills + gender:leadership_presence + gender:speaking_skills, family = binomial, data=phase2)
+#summary(m8)
+
+m9 <- logistf(data = phase2, pass ~ gender:technical_skills + gender:writing_skills + gender:leadership_presence + gender:speaking_skills, firth=TRUE, pl=TRUE)
+summary(m9)
+
+#m10 <- logistf(data = phase2, pass ~ technical_skills + writing_skills + leadership_presence + speaking_skills + gender:technical_skills + gender:writing_skills + gender:leadership_presence + gender:speaking_skills, firth= TRUE, pl=TRUE)
+#summary(m10)
+#coef(m2)
+#coef(m3)
+```
+
+```{r visuals, echo=FALSE, message=F, warning=FALSE, include=T, paged.print=FALSE, results='hide'}
+#annoying way to setup dataframe for visuals
+phase1visual <- (phase1_filter$gender[phase1_filter$pass == 1])
+phase1frame <- data.frame(phase1visual)
+phase1frame$phase <- 1
+phase1frame <- phase1frame %>% rename(gender = phase1visual)
+phase2visual <- (phase2$gender[phase2$pass == 1])
+phase2frame <- data.frame(phase2visual)
+phase2frame$phase <- 2
+phase2frame <- phase2frame %>% rename(gender = phase2visual)
+phase3visual <- (phase3$gender[phase3$pass == 1])
+phase3frame <- data.frame(phase3visual)
+phase3frame$phase <- 3
+phase3frame <- phase3frame %>% rename(gender = phase3visual)
+hiringvisual <- rbind(phase1frame, phase2frame, phase3frame)
+```
+
+```{r echo=FALSE, message=F, warning=FALSE, include=T, paged.print=FALSE, results='hide'}
+ggplot(hiringvisual, aes(factor(phase), fill=factor(gender))) + 
+  geom_bar(position="dodge") + 
+  theme_minimal() + 
+  labs(title = "Barplot of Applicants by Gender Across all Phases",
+       x = "Phase",
+       y = "Number of Succesful Applicants") + 
+  theme(legend.title=element_blank())
+  theme_minimal()
+```
+Figure 3. Barplot of applicants by Gender across all phases. Biases introduced in phase 2 become concentrated as the applicant pool shrinks, leaving only a handful of women by Phase 3.
+
+The hiring process was modeled as a binomial distribution, and a generalized linear model was used. In order to understand how gender was assessed by the AI, covariates such as speaking skills, technical skills leadership skills and writing skills were given an interaction term with gender. If there was no discrimination between men and women within the AI, then we would expect to see a similar odds score across both genders. It was determined that the interaction between gender and technical skills, writing skills, leadership prseence, and speaking skills were statistically signifigant covariates. Women's writing and technical skills were held to a higher standard by the AI system, as women's odds of getting hired increased by only 5.8% as opposed to 8.3% for every unit increase in men's technical skills. The same effect was noticed in writing skills, where women's odds of getting hired increased by only 5.9% as opposed to the 10.1% of men. This effect was off-set in the Leadership skills, which saw an odds increase of 231% for women, as opposed to men's 102% odds increase. Speaking skills while close in score, slightly favored women, wit a 96%  odds increase for women compared to a 87% odds increase for men. Overall, the AI weighs the technical skills, writing skills, speaking skills and leadership presence scores differently for men and women. While it does not favor one particular group overall, in a rare event outcome such as being selected for phase 3, subtle biases become magnified as very few applicants pass phase 2. Because only 22 applicants moved to phase 3 out of 297, there was some slight bias introduced due to the rarity of passing phase 2. In order to reduce bias introduced by the rarity of the event, a modifed, bayesian form of logistic regression was used, namely firth regression, which utilizes jeffreys prior on the covariates.
+
+### Assessement and Analysis of Promotions within Black Saber
+*Are promotions given out fairly among employees at Black Saber?*
+
+Turning now to promotions within Black Saber, it was first necessary to manuipulate and wrangle the data to suit our needs. The first change was to codify each role as a numerical factor. Letting this range from Entry-level = 1, Junior I = 2 ..., Director = 8, Vice President = 9. Afterwards each year and quarted was codified as the quarter number variable, starting since the company's founding in 2013 Q2. To account for people who start their employment at different role levels, A variable to represent the number of promotions with Run Length Encoding was created, with the variable initialized at 0 and increasing by 1 for every quarter an employee recieves a promotion. Finally, the data was grouped together with respect to the starting quarter for every employee and paired with the current number of promotions. Employees who could not recieve promotions were left out of the analysis: employees who haven't been at the company for more than a year and employees who started at the vice president role.
+
+```{r promotions data manipulation, echo = FALSE, include=F, message=F, results='hide', warning=FALSE }
+#ranking num of promotions as role seniority
+dfp <- df %>% select(-c(salary, salary_num))
+mapping <- c("Entry-level" = 1, "Junior I" = 2, "Junior II" = 3, "Senior I" = 4, "Senior II" = 5, "Senior III" = 6, "Manager" = 7, "Director" = 8, "Vice president" = 9)
+dfp$role_seniority <- mapping[dfp$role_seniority]
+dfp$role_seniority <- as.numeric(dfp$role_seniority)
+
+#turning financial q into a useful variable
+#31 quarters total
+#want highest promotion attained
+#want quarter started
+
+#there is a better way to do this but I am lazy
+yearmap <- c("2020 Q4"=31,"2020 Q3"=30,"2020 Q2"=29,"2020 Q1"=28,"2019 Q4"=27,"2019 Q3"=26,"2019 Q2"=25,"2019 Q1"=24,"2018 Q4"=23,"2018 Q3"=22,"2018 Q2"=21,"2018 Q1"=20,
+             "2017 Q4"=19,"2017 Q3"=18,"2017 Q2"=17,"2017 Q1"=16,"2016 Q4"=15,"2016 Q3"=14,"2016 Q2"=13,"2016 Q1"=12,"2015 Q4"=11,"2015 Q3"=10,"2015 Q2"=9,"2015 Q1"=8,
+             "2014 Q4"=7,"2014 Q3"=6,"2014 Q2"=5,"2014 Q1"=4,"2013 Q4"=3,"2013 Q3"=2,"2013 Q2"=1)
+
+#yearmap <- c("2020 Q4"=1,"2020 Q3"=2,"2020 Q2"=3,"2020 Q1"=4,"2019 Q4"=5,"2019 Q3"=6,"2019 Q2"=7,"2019 Q1"=8,"2018 Q4"=9,"2018 Q3"=10,"2018 Q2"=11,"2018 Q1"=12,
+             #"2017 Q4"=13,"2017 Q3"=14,"2017 Q2"=15,"2017 Q1"=16,"2016 Q4"=17,"2016 Q3"=18,"2016 Q2"=19,"2016 Q1"=20,"2015 Q4"=21,"2015 Q3"=22,"2015 Q2"=23,"2015 Q1"=24,
+             #"2014 Q4"=25,"2014 Q3"=26,"2014 Q2"=27,"2014 Q1"=28,"2013 Q4"=29,"2013 Q3"=30,"2013 Q2"=31)
+dfp$financial_q <- yearmap[dfp$financial_q]
+
+#slice for highest role 
+#highest_rank <- dfp %>%
+  #group_by(employee_id) %>%
+  #slice(which.max(role_seniority))
+#slice for starting quarter
+starting_quarter <- dfp %>%
+  group_by(employee_id) %>%
+  slice(which.min(financial_q)) %>%
+  select(financial_q, employee_id)
+#now time for the merge
+#startingq <- starting_quarter["financial_q"]
+#highest_role <- highest_rank %>% select(-c(financial_q, salary, salary_num))
+
+#observe that some people start at a higher role than others, thus we need the difference from starting rank and highest rank attained
+
+#intialize everyones promotions at 0
+dfp$num_promotions <- 0
+#run length encoding cumulative sum of promotions across employee id
+#The RLE increments in the opposite direction, so the rest of the entries must be inverted around the new num_promotions variable
+dfp <- dfp %>% group_by(employee_id) %>% mutate(financial_q = rev(financial_q),
+                                                role_seniority = rev(role_seniority),
+                                                leadership_for_level = rev(leadership_for_level),
+                                                productivity = rev(productivity))
+
+
+dfp <- dfp %>% group_by(employee_id) %>%
+  mutate(num_promotions = with(rle(as.numeric(role_seniority)), rep(seq_along(lengths), lengths)))
+dfp$num_promotions <- dfp$num_promotions - 1
+
+#Add starting quarter, filter those who are not eligible for promotions until 1 year at the company
+dfp$starting_q <- 0
+dfp <- dfp %>% 
+  group_by(employee_id) %>%
+  mutate(starting_q = min(financial_q)) %>%
+  filter(starting_q != 31, starting_q != 30, starting_q != 29, starting_q != 28)
+
+#Add starting role, filter those who are not able to recieve a promotion as they start as a director (role level 9)
+dfp$starting_role <- 0
+dfp <- dfp %>% 
+  group_by(employee_id) %>%
+  mutate(starting_role = min(role_seniority)) %>%
+  filter(starting_role != 9)
+```
+
+```{r promotions visual, echo = FALSE, include=T, message=F, results='hide', warning=FALSE}
+a <- dfp %>% ggplot(mapping = aes(x = team, y = num_promotions, color = gender)) +
+  geom_boxplot() +
+  scale_x_discrete(guide = guide_axis(n.dodge=2)) + 
+  labs(title = "Distribution of Promotions by Gender Across Teams",
+       x = "Team",
+       y = "Promotions") +
+  theme_minimal()
+a
+```
+
+
+Figure 4. Distribution of Promotions by Gender Across Teams. Many teams had a high number of employees with 0 promotions. Otherwise, women tend to recieve less promotions than men in all teams except for Legal and Financial, where women on average recieve more promotions than men. Those who chose not to disclose their gender have slightly higher promotion rates than others.
+
+```{r promotions model, echo=FALSE, message=F, warning=FALSE, include=F, paged.print=FALSE, results='hide'}
+
+#dfp <- dfp %>% subset(gender != "Prefer not to say")
+
+#m3 <- glm(num_promotions ~ starting_q + gender + productivity, family = poisson, data=dfp)
+#summary(m3)
+
+#m4 <- glmer(num_promotions ~ starting_q + gender + (1|employee_id), family=poisson, data=dfp, nAGQ=1)
+#summary(m4)
+#library(pscl)
+#m9 <- zeroinfl(num_promotions ~ starting_q + gender + productivity, data=dfp)
+#summary(m9)
+
+#m7 <- lmer(num_promotions ~ starting_q + gender + productivity + (1|employee_id), data=dfp)
+#summary(m7)
+
+#m8 <- glmer(num_promotions ~  (1|employee_id) + starting_q + (1|financial_q) + gender + productivity, family=poisson, data=dfp)
+#summary(m8)
+
+m9 <- glmer(num_promotions ~ starting_q + gender + (1|employee_id) + (1|financial_q), family=poisson, data=dfp, nAGQ=1)
+summary(m9)
+
+#for a gamma model
+dfp <- dfp %>% filter(num_promotions != 0)
+m5 <- glmer(num_promotions ~ starting_q + (1|employee_id) + gender + (1|financial_q), family=Gamma("identity"), data=dfp, nAGQ=1)
+summary(m5)
+#anova(m7,m8,m5)
+```
+
+
+
+A generalized linear mixed effects model with a poisson link function was created to model promtions at Black Saber. A random effect was included for each employee, as each employee is different from the each other, additionally, a random effect was added for the financial quarter, as in quarters where the company does well, management may give more promotions than in bad companies. The significant variables in determining the amount of promotions an employee recieved was their starting quarter and gender. The longer an employee has worked at the company, the more likely they are to have recieved one or more promotions. Women overall recieve less promotions than men, and being a woman had a statstically significant negative impact on the amount of promotions recieved. Being a woman is equivalent to starting three quarters later than a man when being considered for promotions. Due to low sample size, it was not possible to construct model the interaction of gender and team, or to include team as a varaible as the sample size per team was not large enough to produce significant results. As team varies, the distribution of promotions likely changes with each team. Lastly, due to low sample size, it was not possible to analyze the promotion rates of those whose gender is "prefer not to say". A zero inflated model could be used to better fit the data as half of employees have not recieved any promotions.
+```{r, echo = FALSE, include=F, message=F, results='hide', warning=FALSE}
+library(tidyverse)
+library(lme4)
+
+```
+
+### Discussion
+
+After conducting analysis, Black Saber's salary, hiring and promotion systems, Black Saber is often biased in favor of men. Analyzing salaries, it was found that women are paid less than men on every team on average, and that women are paid less than men at equal promotion levels by about $2000 on average. The hiring analysis revealed that the AI weighs the writing and technical skills of men higher than women, but favors the leadership skills and speaking skills of women higher than men. It is not clear which group the AI favors more, so the analysis is inconclusive. Analyzing the promotion system, it was found that women are penalized as starting 3 quarters later than men demonstrating a bias against them. From this analysis we can conclude then that Black Saber is biased against women and favors men in multiple systems across the company. Overall, the data has a selection bias as it only shows the currently employed workers at the company, and not those who may have left, feeling that they may not be properly compensated or promtoed enough. 
+
+### Strengths and limitations
+
+Black Saber currently employs 607 employees, leading to a large sample size for the salary model. Within the salary process due to the large sample size we were able to come up with accurate estimates for signigicant covariates as they related to salary, allowing us to determine interactions across gender and team. However, we were not without limitations. In the hiring process, as the applicant pool shrank, so too did the sample pool. It became difficult to make any worthwhile inferences about the hiring process after phase 2 as the applicant pool was simply too small to analyze for wide scale biases. For this reason we were only able to understand biases within promotions across all employees, and not on a per team basis. Many teams had a high number of employees with 0 promotions, perhaps a Zero Inflated Poisson model would have been appropriate to deal with such data.
+
+\newpage
+# Consultant information
+## Consultant profile
+
+**Stephen Shannon**. Stephen Shannon is a math, stats and latin student at U of T. He is graduating in 2021.
+
+
